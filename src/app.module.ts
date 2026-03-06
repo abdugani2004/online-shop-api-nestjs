@@ -22,16 +22,27 @@ import { OrdersModule } from './modules/orders/orders.module';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres' as const,
-        host: configService.get<string>('DB_HOST', 'localhost'),
-        port: Number(configService.get<string>('DB_PORT', '5432')),
-        username: configService.get<string>('DB_USERNAME', 'postgres'),
-        password: configService.get<string>('DB_PASSWORD', 'postgres'),
-        database: configService.get<string>('DB_NAME', 'online_shop'),
-        entities: [User, Category, Product, Cart, CartItem, Order, OrderItem],
-        synchronize: configService.get<string>('DB_SYNC', 'true') === 'true',
-      }),
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const dbSync = configService.get<string>('DB_SYNC', 'true') === 'true';
+        const useSsl = configService.get<string>('DB_SSL', 'false') === 'true';
+
+        return {
+          type: 'postgres' as const,
+          ...(databaseUrl
+            ? { url: databaseUrl }
+            : {
+                host: configService.get<string>('DB_HOST', 'localhost'),
+                port: Number(configService.get<string>('DB_PORT', '5432')),
+                username: configService.get<string>('DB_USERNAME', 'postgres'),
+                password: configService.get<string>('DB_PASSWORD', 'postgres'),
+                database: configService.get<string>('DB_NAME', 'online_shop'),
+              }),
+          ssl: useSsl ? { rejectUnauthorized: false } : false,
+          entities: [User, Category, Product, Cart, CartItem, Order, OrderItem],
+          synchronize: dbSync,
+        };
+      },
     }),
     AuthModule,
     UsersModule,
